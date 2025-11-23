@@ -1,0 +1,242 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --background: 210 20% 98%;
+    --foreground: 215 25% 15%;
+    --card: 0 0% 100%;
+    --card-foreground: 215 25% 15%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 215 25% 15%;
+    --primary: 168 76% 42%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 210 20% 96%;
+    --secondary-foreground: 215 25% 15%;
+    --muted: 210 20% 96%;
+    --muted-foreground: 215 15% 50%;
+    --accent: 168 76% 95%;
+    --accent-foreground: 215 25% 15%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 215 20% 88%;
+    --input: 215 20% 88%;
+    --ring: 168 76% 42%;
+    --radius: 1rem;
+    
+    /* Glass effect colors - VisionOS inspired */
+    --glass-white: rgba(255, 255, 255, 0.7);
+    --glass-border: rgba(255, 255, 255, 0.18);
+    --glass-shadow: rgba(31, 38, 135, 0.15);
+    
+    /* Cool color palette */
+    --mint-50: 168 76% 97%;
+    --mint-100: 168 76% 92%;
+    --mint-200: 168 76% 85%;
+    --mint-300: 168 76% 70%;
+    --mint-400: 168 76% 55%;
+    --mint-500: 168 76% 42%;
+    --mint-600: 168 76% 35%;
+    --mint-700: 168 76% 28%;
+    
+    /* Avocado color palette - warm greens */
+    --avocado-50: 75 65% 96%;
+    --avocado-100: 75 65% 90%;
+    --avocado-200: 75 65% 80%;
+    --avocado-300: 75 60% 65%;
+    --avocado-400: 75 55% 55%;
+    --avocado-500: 75 50% 45%;
+    --avocado-600: 75 45% 38%;
+    --avocado-700: 75 40% 30%;
+    
+    --charcoal-50: 215 20% 95%;
+    --charcoal-100: 215 20% 88%;
+    --charcoal-200: 215 20% 75%;
+    --charcoal-300: 215 20% 60%;
+    --charcoal-400: 215 20% 45%;
+    --charcoal-500: 215 25% 30%;
+    --charcoal-600: 215 25% 20%;
+    --charcoal-700: 215 25% 15%;
+    --charcoal-800: 215 25% 10%;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      /* Keep light theme for premium glass effect */
+      --background: 210 20% 98%;
+      --foreground: 215 25% 15%;
+    }
+  }
+}
+
+@layer base {
+  * {
+    border-color: hsl(var(--border));
+  }
+  body {
+    background: linear-gradient(135deg, hsl(var(--avocado-100)) 0%, hsl(var(--avocado-200)) 25%, hsl(var(--mint-100)) 50%, hsl(var(--avocado-100)) 75%, hsl(var(--mint-50)) 100%);
+    background-attachment: fixed;
+    color: hsl(var(--foreground));
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', system-ui, sans-serif;
+    font-weight: 400;
+    letter-spacing: -0.01em;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+/* Premium Glass effect utilities - VisionOS inspired */
+@layer utilities {
+  .glass {
+    background: rgba(255, 255, 255, 0.45);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    box-shadow: 0 8px 32px 0 rgba(100, 120, 80, 0.12);
+  }
+  
+  .glass-card {
+    background: rgba(255, 255, 255, 0.35);
+    backdrop-filter: blur(16px) saturate(180%);
+    -webkit-backdrop-filter: blur(16px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    box-shadow: 0 4px 16px 0 rgba(100, 120, 80, 0.08);
+  }
+  
+  .glass-input {
+    background: rgba(255, 255, 255, 0.4);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+  }
+  
+  .glass-strong {
+    background: rgba(255, 255, 255, 0.55);
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    box-shadow: 0 12px 40px 0 rgba(100, 120, 80, 0.15);
+  }
+  
+  /* Frosted overlay */
+  .frosted-overlay {
+    position: relative;
+  }
+  
+  .frosted-overlay::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at 30% 30%, rgba(168, 228, 218, 0.12), transparent 60%);
+    pointer-events: none;
+    border-radius: inherit;
+  }
+  
+  .frosted-overlay-avocado::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at 30% 30%, rgba(175, 200, 120, 0.15), transparent 60%);
+    pointer-events: none;
+    border-radius: inherit;
+  }
+}
+
+/* Premium animations */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes bounce-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  50% {
+    transform: scale(1.02);
+  }
+  70% {
+    transform: scale(0.98);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% center;
+  }
+  100% {
+    background-position: 200% center;
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+@keyframes glow {
+  0%, 100% {
+    box-shadow: 0 8px 24px 0 rgba(31, 38, 135, 0.08),
+                inset 0 1px 1px 0 rgba(255, 255, 255, 0.6);
+  }
+  50% {
+    box-shadow: 0 8px 32px 0 rgba(168, 228, 218, 0.2),
+                inset 0 1px 1px 0 rgba(255, 255, 255, 0.8);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.animate-bounce-in {
+  animation: bounce-in 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.animate-shimmer {
+  animation: shimmer 2.5s ease-in-out infinite;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+  background-size: 200% 100%;
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.animate-glow {
+  animation: glow 2s ease-in-out infinite;
+}
+
+/* Smooth transitions */
+.transition-glass {
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
