@@ -10,6 +10,9 @@ from pydantic import BaseModel
 from google import genai
 import numpy as np
 import pandas as pd
+from fastapi import Query
+from services.news_service import get_city_news
+from services.weather_service import get_weather
 
 # -------------------------------
 # ENV + APP SETUP
@@ -49,8 +52,8 @@ scaler = joblib.load(SCALER1_PATH)
 # transport_norm, internet_utils_norm, lifestyle_norm
 
 CITY_NORMS_PATHS = [
-    "../dataset/city_norm_values.csv",
-    "../model/city_norm_values.csv",
+    "../dataset/cost_of_living-processed.csv",
+    # "../model/city_norm_values.csv",
 ]
 
 city_norms_df = None
@@ -84,6 +87,16 @@ class ConversationResponse(BaseModel):
     monthly_estimate: Optional[int] = None
     range_low: Optional[int] = None
     range_high: Optional[int] = None
+    # Cost breakdown by category
+    housing_cost: Optional[int] = None
+    food_cost: Optional[int] = None
+    restaurants_cost: Optional[int] = None
+    transport_cost: Optional[int] = None
+    internet_utils_cost: Optional[int] = None
+    lifestyle_cost: Optional[int] = None
+    # City insights
+    news: Optional[Dict[str, Any]] = None
+    weather: Optional[Dict[str, Any]] = None
 
 
 # -------------------------------
@@ -141,7 +154,10 @@ def extract_info_with_gemini(text: str) -> Dict[str, Any]:
 
     resp = gemini.models.generate_content(
         model="gemini-2.0-flash",
-        contents=prompt
+        contents=prompt,
+        config={
+            "temperature": 0.3,  # Lower temperature for accurate extraction
+        }
     )
 
     raw = resp.text.strip()
@@ -207,33 +223,44 @@ def build_city_features(city: str) -> np.ndarray:
 
     # --- Fallback to Gemini if city not found or CSV doesn't exist ---
     prompt = f"""
-    We have 6 normalized cost-of-living values (0 to 1) for a city:
+    Analyze the cost of living for "{city}" and provide 6 normalized values (0 to 1):
 
-    - housing_norm
-    - food_norm
-    - restaurants_norm
-    - transport_norm
-    - internet_utils_norm
-    - lifestyle_norm
+    - housing_norm: Rent/property prices relative to global average
+    - food_norm: Grocery and supermarket costs
+    - restaurants_norm: Dining out and cafe prices
+    - transport_norm: Public transit, fuel, vehicle costs
+    - internet_utils_norm: Internet, electricity, water, gas
+    - lifestyle_norm: Entertainment, gym, hobbies, shopping
 
-    0 means very cheap, 1 means extremely expensive in that category.
+    Scale: 0 = very cheap (e.g., rural India), 0.5 = moderate (e.g., mid-tier US city), 1 = extremely expensive (e.g., Singapore, Zurich)
 
-    City: "{city}"
+    Consider:
+    - The city's country, economic status, and currency strength
+    - Urban vs suburban areas
+    - Known reputation (e.g., NYC/London expensive, Bangkok/Mexico City cheaper)
+    - Regional differences within countries
+    
+    BE SPECIFIC AND VARIED for "{city}". Don't use generic 0.5-0.7 range for everything.
+    Use the full 0-1 scale appropriately based on the city's actual cost characteristics.
 
-    Output ONLY JSON like:
+    Output ONLY JSON:
     {{
-        "housing_norm": 0.58,
-        "food_norm": 0.67,
-        "restaurants_norm": 0.70,
-        "transport_norm": 0.66,
-        "internet_utils_norm": 0.53,
-        "lifestyle_norm": 0.57
+        "housing_norm": 0.XX,
+        "food_norm": 0.XX,
+        "restaurants_norm": 0.XX,
+        "transport_norm": 0.XX,
+        "internet_utils_norm": 0.XX,
+        "lifestyle_norm": 0.XX
     }}
     """
 
     resp = gemini.models.generate_content(
         model="gemini-2.0-flash",
-        contents=prompt
+        contents=prompt,
+        config={
+            "temperature": 0.7,  # Some variety while maintaining accuracy
+            "top_p": 0.9,
+        }
     )
 
     raw = resp.text.strip()
@@ -255,13 +282,21 @@ def build_city_features(city: str) -> np.ndarray:
 # -------------------------------
 # 3) Run base ML model on city
 # -------------------------------
-def run_base_model(city: str) -> Dict[str, float]:
+def run_base_model(city: str) -> Dict[str, Any]:
     feats = build_city_features(city).reshape(1, -1)
     scaled = scaler.transform(feats)
     score = float(ml_model.predict(scaled)[0])
 
     result = {
         "base_score": score,
+        "norms": {
+            "housing": float(feats[0][0]),
+            "food": float(feats[0][1]),
+            "restaurants": float(feats[0][2]),
+            "transport": float(feats[0][3]),
+            "internet_utils": float(feats[0][4]),
+            "lifestyle": float(feats[0][5]),
+        }
     }
 
     # --- OPTIONAL second model (commented out) ---
@@ -375,24 +410,49 @@ def build_gemini_reply(
     Housing: {housing_text}
     Cars: {cars_text}
 
-    A baseline monthly cost estimate for a single person in this city is about {base_monthly} CAD.
-    After adjusting for kids, housing choice, and cars, the estimated monthly cost is about {final_monthly} CAD.
+    Cost Analysis:
+    - Base monthly (single person): {base_monthly} CAD
+    - Adjusted monthly estimate: {final_monthly} CAD
 
-    Write a friendly 3–6 sentence explanation:
-    - Confirm the city and talk about whether it's relatively cheap, moderate, or expensive.
-    - Explain in simple terms why the cost changes when they have kids, cars, or are buying vs renting.
-    - Give a realistic but soft range (e.g. "depending on lifestyle it could be a bit lower or higher").
-    - Suggest what extra info (like salary range, whether both parents work, etc.) could refine the estimate.
-    - Do NOT mention machine learning, models, formulas, or that another AI helped.
+    Create a detailed, insightful response (5-8 sentences) that:
+    
+    1. Acknowledges the city and characterizes its cost level (cheap/moderate/expensive) compared to global standards
+    2. Provides an IN-DEPTH analysis of WHY this city has these costs:
+       - Economic factors (GDP, currency strength, local economy)
+       - Housing market dynamics (supply/demand, real estate trends)
+       - Transportation infrastructure and costs
+       - Food and dining culture/prices
+    3. Explains how their specific situation (kids/housing/cars) impacts the estimate with concrete reasoning
+    4. Highlights which expense categories will be the biggest budget items for them
+    5. Offers practical insights about this city's lifestyle and what to expect
+    6. Suggests additional factors to consider (neighborhood choice, lifestyle preferences, income level)
+    
+    Make it conversational yet informative. Use specific knowledge about {city}.
+    Do NOT mention AI, machine learning, models, or technical processes.
+    Vary your language - don't use the same phrases for every city.
     """
 
     resp = gemini.models.generate_content(
         model="gemini-2.0-flash",
         contents=prompt,
+        config={
+            "temperature": 0.7,  # Some variety while maintaining accuracy
+            "top_p": 0.9,
+        }
     )
 
     return resp.text
 
+@app.get("/city-insights")
+async def city_insights(city: str = Query(..., description="City name")):
+    news = await get_city_news(city)
+    weather = await get_weather(city)
+
+    return {
+        "city": city,
+        "news": news,
+        "weather": weather
+    }
 
 # -------------------------------
 # MAIN ENDPOINT
@@ -446,10 +506,20 @@ async def ai_chat(req: ConversationRequest):
         )
 
     # 2) Base model prediction for this city
+    print(f"\n🔍 Processing city: {city}")
+    print(f"📊 Session state - Kids: {kids}, Housing: {housing}, Cars: {cars}")
+    
     base_preds = run_base_model(city)
     base_score = base_preds["base_score"]
+    norms = base_preds["norms"]
+    
+    print(f"📈 Base ML score: {base_score:.4f}")
+    print(f"🎯 City norms retrieved: {norms}")
+    
     base_cost = score_to_cost(base_score)
     base_monthly = base_cost["monthly"]
+    
+    print(f"💵 Base monthly cost: ${base_monthly}")
 
     # 3) Adjust monthly cost using Option C (manual rules)
     final_monthly = adjust_monthly_with_rules(
@@ -459,12 +529,65 @@ async def ai_chat(req: ConversationRequest):
         housing=housing,
         cars=cars,
     )
+    
+    print(f"💰 Final adjusted monthly: ${final_monthly}")
 
     # Recompute range around final (keep 15–25% band)
     final_range_low = round(final_monthly * 0.85)
     final_range_high = round(final_monthly * 1.25)
+    
+    print(f"\n🧮 Calculating cost breakdown...")
+    print(f"   Using final_monthly: ${final_monthly}")
+    print(f"   City norms: {norms}")
+    
+    # Calculate cost breakdown based on typical spending distribution
+    # Adjusted by city norms (higher norm = more expensive in that category)
+    base_housing = final_monthly * 0.42
+    base_food = final_monthly * 0.14
+    base_restaurants = final_monthly * 0.11
+    base_transport = final_monthly * 0.04
+    base_internet = final_monthly * 0.05
+    base_lifestyle = final_monthly * 0.24
+    
+    print(f"   Base allocations (before norms): H={base_housing:.0f}, F={base_food:.0f}, R={base_restaurants:.0f}, T={base_transport:.0f}, I={base_internet:.0f}, L={base_lifestyle:.0f}")
+    
+    # Apply norm adjustments (multiply by norm to scale relative expense)
+    housing_cost = round(base_housing * norms["housing"] / 0.5)  # 0.5 is baseline
+    food_cost = round(base_food * norms["food"] / 0.5)
+    restaurants_cost = round(base_restaurants * norms["restaurants"] / 0.5)
+    transport_cost = round(base_transport * norms["transport"] / 0.5)
+    internet_utils_cost = round(base_internet * norms["internet_utils"] / 0.5)
+    lifestyle_cost = round(base_lifestyle * norms["lifestyle"] / 0.5)
+    
+    # Ensure breakdown sums to approximately total (normalize if needed)
+    breakdown_sum = housing_cost + food_cost + restaurants_cost + transport_cost + internet_utils_cost + lifestyle_cost
+    if breakdown_sum != final_monthly and breakdown_sum > 0:
+        ratio = final_monthly / breakdown_sum
+        housing_cost = round(housing_cost * ratio)
+        food_cost = round(food_cost * ratio)
+        restaurants_cost = round(restaurants_cost * ratio)
+        transport_cost = round(transport_cost * ratio)
+        internet_utils_cost = round(internet_utils_cost * ratio)
+        # Adjust lifestyle to make exact total
+        lifestyle_cost = final_monthly - (housing_cost + food_cost + restaurants_cost + transport_cost + internet_utils_cost)
+    
+    # Log the breakdown for debugging
+    print(f"💰 Cost Breakdown for {city}:")
+    print(f"  Housing: ${housing_cost} (norm: {norms['housing']:.2f})")
+    print(f"  Food: ${food_cost} (norm: {norms['food']:.2f})")
+    print(f"  Restaurants: ${restaurants_cost} (norm: {norms['restaurants']:.2f})")
+    print(f"  Transport: ${transport_cost} (norm: {norms['transport']:.2f})")
+    print(f"  Internet/Utils: ${internet_utils_cost} (norm: {norms['internet_utils']:.2f})")
+    print(f"  Lifestyle: ${lifestyle_cost} (norm: {norms['lifestyle']:.2f})")
+    print(f"  Total: ${final_monthly}")
 
-    # 4) Build human explanation with Gemini
+    # 4) Fetch city insights (news and weather)
+    print(f"🌤️ Fetching city insights for {city}...")
+    news = await get_city_news(city)
+    weather = await get_weather(city)
+    print(f"✅ City insights retrieved: {len(news)} news items, weather data available")
+
+    # 5) Build human explanation with Gemini
     reply = build_gemini_reply(
         user_msg=user_msg,
         city=city,
@@ -486,6 +609,14 @@ async def ai_chat(req: ConversationRequest):
         monthly_estimate=final_monthly,    # adjusted monthly
         range_low=final_range_low,
         range_high=final_range_high,
+        housing_cost=housing_cost,
+        food_cost=food_cost,
+        restaurants_cost=restaurants_cost,
+        transport_cost=transport_cost,
+        internet_utils_cost=internet_utils_cost,
+        lifestyle_cost=lifestyle_cost,
+        news=news,
+        weather=weather,
     )
 
 

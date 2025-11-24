@@ -6,10 +6,8 @@ services:
     container_name: cistra-api
     ports:
       - "8000:8000"
-    environment:
-      - GEMINI_API_KEY=AIzaSyAxv7tSnY3NBsh1uKK_9si6G0fE0aMAYq0
-      - PORT=8000
-      - DEBUG=True
+    env_file:
+      - .env
     volumes:
       - ./model:/app/model:ro
     restart: unless-stopped

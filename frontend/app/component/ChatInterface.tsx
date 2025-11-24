@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { Send } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { cn } from "@/lib/utils";
+import { Send, MapPin, DollarSign, Sparkles, BarChart3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { motion, AnimatePresence } from "framer-motion";
@@ -16,10 +17,26 @@ interface ChatInterfaceProps {
   onQuery: (query: string) => void;
   messages: Message[];
   isFullscreen?: boolean;
+  isLoading?: boolean;
+  isMobileMinimized?: boolean;
+  onToggleMinimize?: () => void;
 }
 
-export const ChatInterface = ({ onQuery, messages, isFullscreen = false }: ChatInterfaceProps) => {
+export const ChatInterface = ({ 
+  onQuery, 
+  messages, 
+  isFullscreen = false, 
+  isLoading = false,
+  isMobileMinimized = false,
+  onToggleMinimize 
+}: ChatInterfaceProps) => {
   const [input, setInput] = useState("");
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to bottom when messages change
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,166 +47,117 @@ export const ChatInterface = ({ onQuery, messages, isFullscreen = false }: ChatI
   };
 
   return (
-    <div className="flex flex-col h-full bg-transparent relative">
+    <div className="flex flex-col h-full  relative">
+      {/* Mobile Minimize/Maximize Button - Only visible on small screens in split view */}
+      {!isFullscreen && onToggleMinimize && (
+        <motion.button
+          onClick={onToggleMinimize}
+          className="md:hidden absolute top-2 right-2 z-30 bg-avocado-600 hover:bg-avocado-700 text-black rounded-full p-2 shadow-lg"
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+        >
+          {isMobileMinimized ? (
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+            </svg>
+          ) : (
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          )}
+        </motion.button>
+      )}
+      
+      {/* Show minimized bar on mobile when minimized */}
+      {isMobileMinimized && !isFullscreen ? (
+        <div 
+           onClick={onToggleMinimize}
+         className="md:hidden flex items-center justify-between px-4 py-4 mx-2 bg-linear-to-r from-avocado-500 to-mint-500 rounded-3xl">
+          <div className="flex items-center gap-2">
+            <span className="text-xl">🥑</span>
+            <span className="text-sm font-medium text-black">Tap to expand chat</span>
+          </div>
+        </div>
+      ) : (
+        <>
       {/* Floating Header Badge for Split View */}
       {!isFullscreen && (
         <motion.div 
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="absolute top-4 left-4 right-4 z-10 flex items-center justify-between">
-          <div className="flex items-center gap-2 px-4 py-2 rounded-full glass backdrop-blur-xl shadow-lg">
-            <div className="w-6 h-6 rounded-full bg-gradient-to-br from-avocado-400 to-mint-500 flex items-center justify-center">
-              <span className="text-xs">🥑</span>
-            </div>
+          className="absolute top-3 sm:top-4 left-3 sm:left-4 right-3 sm:right-4 z-10 flex items-center justify-between">
+          <div className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-full glass backdrop-blur-xl shadow-lg">
+            <span className="text-lg sm:text-xl">🥑</span>
             <span className="text-xs font-medium text-charcoal-700">Avocado AI</span>
           </div>
         </motion.div>
       )}
 
-      {/* Chat Header - Hide in split view for cleaner look */}
-      {isFullscreen && (
+      {/* Chat Header - Only show when messages exist in fullscreen, or always in split view (which is handled by !isFullscreen condition above) */}
+      {isFullscreen && messages.length > 0 && (
         <motion.div 
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="p-8 border-b border-white/20 glass backdrop-blur-md">
-          <div className="flex items-center gap-4">
-          <div className="w-12 h-12 p-1 rounded-2xl glass-strong flex items-center justify-center frosted-overlay">
-            <svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
-  {/* Avocado body */}
-  <path d="M100 20
-           C55 20 30 70 30 110
-           C30 150 60 180 100 180
-           C140 180 170 150 170 110
-           C170 70 145 20 100 20Z"
-        fill="#8BC34A" stroke="#4A7A23" strokeWidth="6"/>
-
-  {/* Inner flesh */}
-  <path d="M100 45
-           C70 45 55 80 55 110
-           C55 145 75 165 100 165
-           C125 165 145 145 145 110
-           C145 80 130 45 100 45Z"
-        fill="#AEEA71" stroke="#6D9F3A" strokeWidth="4"/>
-
-  {/* Seed */}
-  <circle cx="100" cy="120" r="28" fill="#8D5A2B" stroke="#5C3A1A" strokeWidth="4"/>
-
-  {/* Mascot eyes */}
-  <circle cx="82" cy="92" r="6" fill="#2E2E2E"/>
-  <circle cx="118" cy="92" r="6" fill="#2E2E2E"/>
-
-  {/* Cute smile */}
-  <path d="M82 105 Q100 118 118 105" stroke="#2E2E2E" strokeWidth="4" strokeLinecap="round" fill="none"/>
-
-</svg>
+          className="px-4 sm:px-6 md:px-8 pt-4 sm:pt-6 pb-6 sm:pb-8">
+          <div className="flex items-center gap-3">
+            <span className="text-2xl">🥑</span>
+            <div>
+              <h2 className="text-lg font-semibold text-charcoal-800 tracking-tight">Avocado</h2>
+            </div>
           </div>
-          <div>
-            <h2 className="text-xl font-semibold text-charcoal-800 tracking-tight">Avocado</h2>
-            <p className="text-sm text-charcoal-400 font-light">Cost of Living Intelligence</p>
-          </div>
-        </div>
       </motion.div>
       )}
 
       {/* Messages - with bottom padding for floating input */}
-      <div className={`flex-1 overflow-y-auto space-y-6 ${
-        isFullscreen ? 'p-8 pb-32' : 'p-6 pt-20 pb-28'
+      <div className={`flex-1 overflow-y-auto scrollbar-none ${ 
+        isFullscreen ? 'px-4 sm:px-6 md:px-8 pt-6 sm:pt-8 pb-48 sm:pb-56' : 'p-4 sm:p-6 pt-16 sm:pt-20 pb-36 sm:pb-40'
       }`}>
         {messages.length === 0 ? (
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, ease: "easeOut" }}
-            className={`flex flex-col items-center justify-center h-full text-center space-y-8 px-4 ${
-            isFullscreen ? 'max-w-3xl mx-auto' : ''
-          }`}>
-            <motion.div 
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ duration: 0.8, delay: 0.2, ease: "backOut" }}
-              className={`rounded-3xl p-1 glass-strong flex items-center justify-center frosted-overlay-avocado ${
-              isFullscreen ? 'w-32 h-32' : 'w-24 h-24'
+            className={`flex flex-col items-center h-full text-center px-3 sm:px-4 ${
+              isFullscreen ? 'justify-end pb-6 sm:pb-8' : 'justify-center space-y-6 sm:space-y-8'
             }`}>
-              <svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
-  {/* Avocado body */}
-  <path d="M100 20
-           C55 20 30 70 30 110
-           C30 150 60 180 100 180
-           C140 180 170 150 170 110
-           C170 70 145 20 100 20Z"
-        fill="#8BC34A" stroke="#4A7A23" strokeWidth="6"/>
-
-  {/* Inner flesh */}
-  <path d="M100 45
-           C70 45 55 80 55 110
-           C55 145 75 165 100 165
-           C125 165 145 145 145 110
-           C145 80 130 45 100 45Z"
-        fill="#AEEA71" stroke="#6D9F3A" strokeWidth="4"/>
-
-  {/* Seed */}
-  <circle cx="100" cy="120" r="28" fill="#8D5A2B" stroke="#5C3A1A" strokeWidth="4"/>
-
-  {/* Mascot eyes */}
-  <circle cx="82" cy="92" r="6" fill="#2E2E2E"/>
-  <circle cx="118" cy="92" r="6" fill="#2E2E2E"/>
-
-  {/* Cute smile */}
-  <path d="M82 105 Q100 118 118 105" stroke="#2E2E2E" strokeWidth="4" strokeLinecap="round" fill="none"/>
-
-</svg>
-
-              {/* <img src="/assets/avocado-mascot.png" alt="Avocado AI" className={isFullscreen ? 'w-20 h-20' : 'w-14 h-14'} /> */}
-            </motion.div>
-            <motion.div 
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.4 }}
-              className={`space-y-4 ${isFullscreen ? 'max-w-2xl' : 'max-w-md'}`}>
-              <h3 className={`font-semibold text-charcoal-800 tracking-tight ${
-                isFullscreen ? 'text-4xl' : 'text-2xl'
-              }`}>Welcome to Avocado</h3>
-              <p className={`text-charcoal-500 font-light leading-relaxed ${
-                isFullscreen ? 'text-lg' : 'text-sm'
-              }`}>
-                Discover cost of living insights for cities worldwide with AI-powered analysis and beautiful visualizations.
-              </p>
-            </motion.div>
-            <motion.div 
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.6 }}
-              className={`flex flex-wrap gap-3 justify-center ${
-              isFullscreen ? 'max-w-2xl' : 'max-w-lg'
-            }`}>
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => onQuery("What's the cost of living in Toronto?")}
-                className="rounded-2xl px-5 transition-glass hover:scale-105"
+            
+            <div className="space-y-6 sm:space-y-10 max-w-3xl">
+              {/* Minimal Floating Welcome - Gemini style */}
+              <motion.div 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.1 }}
+                className="flex flex-col items-center gap-4 sm:gap-6"
               >
-                <span className="text-xs font-medium">Cost in Toronto</span>
-              </Button>
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => onQuery("Compare London and Berlin")}
-                className="rounded-2xl px-5 transition-glass hover:scale-105"
-              >
-                <span className="text-xs font-medium">Compare cities</span>
-              </Button>
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => onQuery("Most affordable cities in Europe")}
-                className="rounded-2xl px-5 transition-glass hover:scale-105"
-              >
-                <span className="text-xs font-medium">Affordable cities</span>
-              </Button>
-            </motion.div>
+                <motion.div 
+                  className="text-5xl sm:text-6xl md:text-7xl"
+                  animate={{ 
+                    y: [-8, 8, -8],
+                    rotate: [-5, 5, -5]
+                  }}
+                  transition={{ 
+                    duration: 4, 
+                    repeat: Infinity, 
+                    ease: "easeInOut" 
+                  }}
+                >
+                  🥑
+                </motion.div>
+
+                <div className="space-y-3 sm:space-y-4 text-center mb-20 sm:mb-12 px-2">
+                  <h3 className="text-3xl sm:text-4xl md:text-5xl text-charcoal-800 font-light tracking-tight">
+                    Welcome to Avocado
+                  </h3>
+                  <p className="text-base sm:text-lg md:text-xl text-charcoal-500 font-light max-w-xl px-2">
+                    "Find out if you can afford to move in a new city with just a prompt!"
+                  </p>
+                </div>
+              </motion.div>
+            </div>
           </motion.div>
         ) : (
           <AnimatePresence mode="popLayout">
+          <div className="space-y-6 sm:space-y-8">
           {messages.map((message, index) => (
             <motion.div
               key={message.id}
@@ -208,7 +176,7 @@ export const ChatInterface = ({ onQuery, messages, isFullscreen = false }: ChatI
               )}
               <motion.div
                 whileHover={{ scale: 1.01 }}
-                className={`rounded-2xl px-4 py-3 max-w-[80%] ${
+                className={`rounded-2xl px-3 sm:px-4 py-2.5 sm:py-3 max-w-[85%] sm:max-w-[80%] ${
                   message.type === "user"
                     ? "glass-strong text-charcoal-800 shadow-lg"
                     : "glass-card text-charcoal-700 shadow-md"
@@ -218,8 +186,11 @@ export const ChatInterface = ({ onQuery, messages, isFullscreen = false }: ChatI
               </motion.div>
             </motion.div>
           ))}
+          </div>
           </AnimatePresence>
         )}
+        {/* Invisible div for auto-scroll */}
+        <div ref={messagesEndRef} />
       </div>
 
       {/* Floating Input Container */}
@@ -227,30 +198,104 @@ export const ChatInterface = ({ onQuery, messages, isFullscreen = false }: ChatI
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
-        className={`absolute bottom-0 left-0 right-0 z-20 ${
-          isFullscreen ? 'p-8' : 'p-6'
+        className={`absolute bottom-0 left-0 right-0 z-20 flex justify-center ${
+          isFullscreen ? 'p-4 sm:p-6 md:p-8 pb-8 sm:pb-12' : 'p-3 sm:p-4 md:p-6'
         }`}
       >
-        <div className="glass-strong rounded-3xl shadow-2xl p-4 frosted-overlay">
-          <form onSubmit={handleSubmit} className="flex gap-3 items-center">
-            <div className="flex-1 relative">
-              <Input
+        <div className={cn(
+          "w-full transition-all duration-500 ease-out",
+          isFullscreen && messages.length === 0 ? "max-w-2xl" : "max-w-full"
+        )}>
+          <div className={cn(
+            "rounded-3xl transition-all duration-300 p-2",
+            isFullscreen && messages.length === 0 
+              ? "border border-white/30"
+              : "border border-white/20"
+          )}>
+            <form onSubmit={handleSubmit}>
+              <textarea
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder="Ask about cost of living..."
-                className="rounded-2xl h-12 pl-5 pr-4 text-sm border-0 bg-white/40 backdrop-blur-sm focus:bg-white/60 transition-all"
+                placeholder="Ask about cost of living... "
+                disabled={isLoading}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSubmit(e as any);
+                  }
+                }}
+                className={cn(
+                  "w-full border  bg-transparent focus:bg-transparent  focus-visible:outline-none transition-all disabled:opacity-50 placeholder:text-charcoal-400 rounded-3xl resize-none align-top",
+                  isFullscreen && messages.length === 0 
+                    ? "h-24 sm:h-28 md:h-32 pl-4 sm:pl-5 md:pl-6 pr-4 sm:pr-5 md:pr-6 pt-3 sm:pt-3.5 md:pt-4 text-base sm:text-lg"
+                    : "h-20 sm:h-22 md:h-24 pl-4 sm:pl-5 pr-3 sm:pr-4 pt-2.5 sm:pt-3 text-sm"
+                )}
               />
-            </div>
-            <Button
-              type="submit"
-              size="icon"
-              className="rounded-2xl w-12 h-12 shrink-0 bg-linear-to-br from-avocado-500 to-mint-600 hover:from-avocado-600 hover:to-mint-700 text-white shadow-lg hover:shadow-xl transition-all hover:scale-105"
-            >
-              <Send className="w-4 h-4" />
-            </Button>
-          </form>
+            </form>
+            
+            {/* Quick Prompt Pills below input */}
+            {isFullscreen && messages.length === 0 && (
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.5 }}
+                className="flex flex-wrap gap-2 justify-center mt-3 sm:mt-4 px-2 sm:px-4 pb-2"
+              >
+                <button
+                  type="button"
+                  onClick={() => {
+                    setInput("I want to move to Toronto");
+                    setTimeout(() => {
+                      const form = document.querySelector('form');
+                      if (form) {
+                        form.requestSubmit();
+                      }
+                    }, 100);
+                  }}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/30 backdrop-blur-sm border border-white/40 hover:bg-white/40 hover:border-avocado-400/50 transition-all cursor-pointer"
+                >
+                  <MapPin className="w-3.5 h-3.5 text-avocado-600" />
+                  <span className="text-xs text-charcoal-700 font-light">I want to move to Toronto</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setInput("I'm a student moving to New York");
+                    setTimeout(() => {
+                      const form = document.querySelector('form');
+                      if (form) {
+                        form.requestSubmit();
+                      }
+                    }, 100);
+                  }}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/30 backdrop-blur-sm border border-white/40 hover:bg-white/40 hover:border-avocado-400/50 transition-all cursor-pointer"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-avocado-600" />
+                  <span className="text-xs text-charcoal-700 font-light">I'm a student moving to New York</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setInput("I want to move to London with 2 kids");
+                    setTimeout(() => {
+                      const form = document.querySelector('form');
+                      if (form) {
+                        form.requestSubmit();
+                      }
+                    }, 100);
+                  }}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/30 backdrop-blur-sm border border-white/40 hover:bg-white/40 hover:border-avocado-400/50 transition-all cursor-pointer"
+                >
+                  <DollarSign className="w-3.5 h-3.5 text-avocado-600" />
+                  <span className="text-xs text-charcoal-700 font-light">How much would living in London with 2 kids cost?</span>
+                </button>
+              </motion.div>
+            )}
+          </div>
         </div>
       </motion.div>
+      </>
+      )}
     </div>
   );
 };

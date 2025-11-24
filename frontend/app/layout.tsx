@@ -5,6 +5,9 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Avacado - Plan Your Next Move",
   description: "Avacado helps you estimate the cost of living for your next move with ease and accuracy.",
+  icons: {
+    icon: "/icon",
+  },
 };
 
 export default function RootLayout({
